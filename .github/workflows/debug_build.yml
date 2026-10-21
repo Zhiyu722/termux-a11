@@ -131,3 +131,53 @@ jobs:
           path: |
             ${{ env.APK_DIR_PATH }}/${{ env.APK_BASENAME_PREFIX }}_sha256sums
             ${{ env.APK_DIR_PATH }}/output-metadata.json
+
+  release:
+    needs: build
+    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Clone repository
+        uses: actions/checkout@v6
+
+      - name: Download all APK artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: apks
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          VER="$(grep -m 1 -E '^[[:space:]]+versionName "[^"]+"$' ./app/build.gradle | sed -r 's/^[[:space:]]+versionName "([^"]+)"$/\1/')"
+          SHA="${GITHUB_SHA:0:7}"
+          TAG="v${VER}-a11"
+          TITLE="Termux a11 v${VER}（Android 11 存储访问修复版）"
+          cat > /tmp/release_notes.md <<EOF
+          ## 修复的问题
+          - Android 11 下终端无法访问 /sdcard（/storage/emulated/0），执行 ls /sdcard 报 Permission denied。
+          - 根因：存储权限此前只能通过 termux-setup-storage 或系统设置手动触发，很多设备从未弹出权限框，应用没有 WRITE_EXTERNAL_STORAGE，终端读不了共享存储。
+
+          ## 更新内容
+          - 首次启动且缺少存储权限时，Termux 自动弹出存储（所有文件访问）权限请求，授予后即可在终端访问 /sdcard。
+          - 删除多余的上游 CI workflow，仅保留 debug 构建。
+          - 移除 Dependabot 配置，避免无意义的依赖升级 PR 与重复构建。
+
+          ## 安装说明
+          - 推荐安装 universal（通用）或按 CPU 架构安装 arm64-v8a 版本。
+          - 首次启动时请在弹窗中允许存储权限；若已装过旧版，先到系统设置撤销 Termux 的存储权限再重新授予。
+
+          ## 构建信息
+          - 版本：v${VER}
+          - commit：${SHA}
+          EOF
+          FILES=(apks/*/*.apk apks/*/*_sha256sums)
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            gh release upload "$TAG" "${FILES[@]}" --clobber
+            gh release edit "$TAG" --title "$TITLE" --notes-file /tmp/release_notes.md
+          else
+            gh release create "$TAG" "${FILES[@]}" --title "$TITLE" --notes-file /tmp/release_notes.md
+          fi
