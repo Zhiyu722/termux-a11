@@ -52,6 +52,20 @@
 
 `app/build.gradle`：`versionCode 1023` / `versionName "0.119.0-beta.3-a11"`。
 
+### 6. bootstrap 变体版本区间校验（移植自 beta 分支 `46cd5143`）
+
+- `app/build.gradle`：新增 `bootstrapMinSdk` / `bootstrapMinRelease` / `bootstrapMaxSdk` / `bootstrapMaxRelease`，
+  并按变体决定构建用的 `minSdkVersion`：
+  - `apt-android-7` → `minSdk 24`（Android 7.0+）
+  - `apt-android-5` → `minSdk 21`、`maxSdk 23`（Android 5.0–6.0）
+  同时通过 `buildConfigField` 把区间写进 `BuildConfig`。
+- `TermuxInstaller.setupBootstrapIfNeeded()`：安装 bootstrap 前调用
+  `checkIfMinOrMaxSdkVersionIsIncompatible()`，设备 Android 版本超出该变体支持区间时
+  直接弹出明确提示（“此 APK 变体支持 Android 7.0+，你的设备是 x.x”）并退出，
+  而不是等 bootstrap 解压后出现难以定位的链接错误、`pkg` 全线失败。
+- 效果：把 `apt-android-7` 的包装到 Android 5/6 上会在安装阶段就被系统拒绝；
+  万一绕过（如侧载老包），运行时也会给出人话提示。
+
 ## 已包含的上游新版能力（`v0.119.0-beta.3` 及之后）
 
 - 存储权限迁移到 `MANAGE_EXTERNAL_STORAGE`（见上）。

@@ -11,6 +11,7 @@ import android.util.Pair;
 import android.view.WindowManager;
 
 import com.termux.R;
+import com.termux.BuildConfig;
 import com.termux.shared.file.FileUtils;
 import com.termux.shared.termux.crash.TermuxCrashUtils;
 import com.termux.shared.termux.file.TermuxFileUtils;
@@ -20,6 +21,7 @@ import com.termux.shared.markdown.MarkdownUtils;
 import com.termux.shared.errors.Error;
 import com.termux.shared.android.PackageUtils;
 import com.termux.shared.termux.TermuxConstants;
+import com.termux.shared.termux.TermuxBootstrap;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
 
@@ -115,6 +117,15 @@ final class TermuxInstaller {
             MessageDialogUtils.showMessage(activity,
                 activity.getString(R.string.bootstrap_error_title),
                 bootstrapErrorMessage, null);
+            return;
+        }
+
+        // Check if the bootstrap variant included in the APK is compatible with the Android version of the
+        // device. The bootstrap binaries are compiled for a specific Android version range, so if they are
+        // run on a version outside of it, they will fail with hard to debug errors instead of a clear message.
+        if (!checkIfMinOrMaxSdkVersionIsIncompatible(activity,
+            BuildConfig.TERMUX_APP__BOOTSTRAP_MIN_SDK, BuildConfig.TERMUX_APP__BOOTSTRAP_MIN_RELEASE,
+            BuildConfig.TERMUX_APP__BOOTSTRAP_MAX_SDK, BuildConfig.TERMUX_APP__BOOTSTRAP_MAX_RELEASE)) {
             return;
         }
 
@@ -284,6 +295,49 @@ final class TermuxInstaller {
         } catch (IOException e) {
             Logger.logError(LOG_TAG, "Failed to set default apt sources list \"" + sourcesListFile.getAbsolutePath() + "\": " + e.getMessage());
         }
+    }
+
+    /**
+     * Check if the Android version of the device is outside of the range supported by the bootstrap
+     * variant included in the APK. If it is, an error message is shown to the user and the app is exited,
+     * since the bootstrap binaries would not work correctly on the device.
+     *
+     * @return {@code true} if the Android version is compatible, otherwise {@code false}.
+     */
+    public static boolean checkIfMinOrMaxSdkVersionIsIncompatible(Activity activity,
+                                                                  Integer minSdk, String minRelease,
+                                                                  Integer maxSdk, String maxRelease) {
+        if (minSdk != null && Build.VERSION.SDK_INT < minSdk) {
+            String bootstrapErrorMessage = activity.getString(R.string.bootstrap_error_apk_bootstrap_variant_min_sdk_incompatible,
+                MarkdownUtils.getMarkdownCodeForString(TermuxBootstrap.TERMUX_APP_PACKAGE_VARIANT.getName(), false),
+                MarkdownUtils.getMarkdownCodeForString(Build.VERSION.RELEASE, false),
+                Build.VERSION.SDK_INT,
+                MarkdownUtils.getMarkdownCodeForString(minRelease, false),
+                minSdk);
+            Logger.logError(LOG_TAG, bootstrapErrorMessage);
+            sendBootstrapCrashReportNotification(activity, bootstrapErrorMessage);
+            MessageDialogUtils.exitAppWithErrorMessage(activity,
+                activity.getString(R.string.bootstrap_error_title),
+                bootstrapErrorMessage);
+            return false;
+        }
+
+        if (maxSdk != null && Build.VERSION.SDK_INT > maxSdk) {
+            String bootstrapErrorMessage = activity.getString(R.string.bootstrap_error_apk_bootstrap_variant_max_sdk_incompatible,
+                MarkdownUtils.getMarkdownCodeForString(TermuxBootstrap.TERMUX_APP_PACKAGE_VARIANT.getName(), false),
+                MarkdownUtils.getMarkdownCodeForString(Build.VERSION.RELEASE, false),
+                Build.VERSION.SDK_INT,
+                MarkdownUtils.getMarkdownCodeForString(maxRelease, false),
+                maxSdk);
+            Logger.logError(LOG_TAG, bootstrapErrorMessage);
+            sendBootstrapCrashReportNotification(activity, bootstrapErrorMessage);
+            MessageDialogUtils.exitAppWithErrorMessage(activity,
+                activity.getString(R.string.bootstrap_error_title),
+                bootstrapErrorMessage);
+            return false;
+        }
+
+        return true;
     }
 
     public static void showBootstrapErrorDialog(Activity activity, Runnable whenDone, String message) {
