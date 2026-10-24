@@ -12,6 +12,7 @@ import android.content.ServiceConnection;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.os.IBinder;
 import android.view.ContextMenu;
 import android.view.ContextMenu.ContextMenuInfo;
@@ -66,6 +67,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
 import androidx.viewpager.widget.ViewPager;
 
+import java.io.File;
 import java.util.Arrays;
 
 /**
@@ -279,20 +281,44 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // app has been opened.
         TermuxUtils.sendTermuxOpenedBroadcast(this);
 
-        // On Android 11+ the legacy or "All files access" storage permission is required to access
-        // /sdcard (/storage/emulated/0) from the terminal, otherwise commands like `ls /sdcard` fail
-        // with "Permission denied". Request it automatically on first launch instead of relying on the
-        // user to run termux-setup-storage (which may only create symlinks and never trigger the
-        // permission prompt on some devices).
-        //
-        // On Android 11+ "All files access" (MANAGE_EXTERNAL_STORAGE) is checked/requested, since
-        // requesting legacy storage permission may only grant granular media permissions on newer
-        // Android versions (specially Android 14+) and not full file access to /sdcard.
-        boolean checkLegacyStoragePermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
-        if (savedInstanceState == null &&
-            !PermissionUtils.checkStoragePermission(this, checkLegacyStoragePermission)) {
+        // On Android 11+ the app needs either the legacy storage permission (READ/WRITE_EXTERNAL_STORAGE,
+        // which still grants full access to /sdcard on Android 11-13 for apps targeting sdk <= 29) or the
+        // "All files access" permission (MANAGE_EXTERNAL_STORAGE, required on Android 14+ where the legacy
+        // permissions only grant granular media access), otherwise commands like `ls /sdcard` fail with
+        // "Permission denied". Request it automatically on first launch instead of relying on the user to
+        // run termux-setup-storage (which may only create symlinks and never trigger the permission prompt
+        // on some devices).
+        if (savedInstanceState == null && !hasStorageAccessPermission()) {
             requestStoragePermission(false);
         }
+    }
+
+    /**
+     * Check if the app currently has access to the shared storage (/sdcard, /storage/emulated/0).
+     *
+     * The legacy storage permissions are checked first since they are the ones that can be granted with a
+     * regular permission dialog. The "All files access" permission is also considered, and on Android 14+
+     * the legacy permissions alone may only grant granular media access, so it is verified that the shared
+     * storage directory can actually be listed before the permission is considered granted.
+     *
+     * @return Returns {@code true} if the shared storage is accessible, otherwise {@code false}.
+     */
+    public boolean hasStorageAccessPermission() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && Environment.isExternalStorageManager())
+            return true;
+
+        if (!PermissionUtils.checkStoragePermission(this, true))
+            return false;
+
+        if (Build.VERSION.SDK_INT >= 34) {
+            // On Android 14+ the legacy storage permissions may only grant granular media permissions, so
+            // verify that the shared storage directory can actually be listed.
+            File sharedStorageDir = Environment.getExternalStorageDirectory();
+            String[] entries = sharedStorageDir != null ? sharedStorageDir.list() : null;
+            return entries != null;
+        }
+
+        return true;
     }
 
     @Override
@@ -781,6 +807,16 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
      * termux needs to be granted legacy WRITE_EXTERNAL_STORAGE or MANAGE_EXTERNAL_STORAGE permissions
      * if targeting targetSdkVersion 30 (android 11) and running on sdk 30 (android 11) and higher.
      */
+    /**
+     * On Android 14+ the legacy storage permissions only grant granular media access, so the
+     * "All files access" permission must be requested instead. On older Android versions the legacy
+     * permissions are requested since they grant full access to /sdcard and can be granted directly
+     * with a regular permission dialog.
+     */
+    private static boolean shouldPrioritizeManageExternalStoragePermission() {
+        return Build.VERSION.SDK_INT >= 34;
+    }
+
     public void requestStoragePermission(boolean isPermissionCallback) {
         new Thread() {
             @Override
@@ -790,7 +826,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
                 // If permission is granted, then also setup storage symlinks.
                 if(PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                    TermuxActivity.this, requestCode, true, !isPermissionCallback)) {
+                    TermuxActivity.this, requestCode, shouldPrioritizeManageExternalStoragePermission(), !isPermissionCallback)) {
                     if (isPermissionCallback)
                         Logger.logInfoAndShowToast(TermuxActivity.this, LOG_TAG,
                             getString(com.termux.shared.R.string.msg_storage_permission_granted_on_request));

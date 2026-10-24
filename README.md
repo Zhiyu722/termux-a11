@@ -1,6 +1,6 @@
 # Termux application
 
-> **本仓库（`Zhiyu722/termux-a11`）是 [termux/termux-app](https://github.com/termux/termux-app) 的定制分支**，相对官方 `v0.119.0-beta.3`（以及旧版 `v0.118.0`）额外做了以下改动，版本号见 `app/build.gradle`（`versionCode 1023` / `versionName 0.119.0-beta.3-a11`）：
+> **本仓库（`Zhiyu722/termux-a11`）是 [termux/termux-app](https://github.com/termux/termux-app) 的定制分支**，相对官方 `v0.119.0-beta.3`（以及旧版 `v0.118.0`）额外做了以下改动，版本号见 `app/build.gradle`（`versionCode 1024` / `versionName 0.119.0-beta.3-a11.1`）：
 >
 > 1. **修复 Android 11+ 无法访问 `/sdcard`**：首次启动时自动申请存储权限（Android 11+ 直接申请「所有文件访问权限」`MANAGE_EXTERNAL_STORAGE`），不再需要用户手动执行 `termux-setup-storage`，`ls /sdcard` 不再报 `Permission denied`。
 > 2. **移植 `v0.119.0-beta.3` 的存储权限新逻辑**：`PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission()` 新增 `prioritizeManageExternalStoragePermission` 参数，在 Android 11+ 优先申请 `MANAGE_EXTERNAL_STORAGE`，修复 Android 14 上只弹「照片/音乐/视频」细粒度授权、拿不到 `/sdcard` 读写的问题，并且顺带支持 USB OTG 等外部卷。

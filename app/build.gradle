@@ -55,8 +55,8 @@ android {
     defaultConfig {
         minSdkVersion project.ext.buildMinSdk
         targetSdkVersion project.ext.buildTargetSdk
-        versionCode 1023
-        versionName "0.119.0-beta.3-a11"
+        versionCode 1024
+        versionName "0.119.0-beta.3-a11.1"
 
         if (appVersionName) versionName = appVersionName
         validateVersionName(versionName)

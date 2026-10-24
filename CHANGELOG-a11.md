@@ -2,8 +2,8 @@
 
 本仓库基于官方 [termux/termux-app](https://github.com/termux/termux-app) 的 `master` 分支（含 `v0.119.0-beta.3` 之后的全部上游修复），在其之上叠加下列定制改动。
 
-- 版本：`versionCode 1023` / `versionName 0.119.0-beta.3-a11`
-- 说明：`versionCode` 为 `1023`，高于官方 `v0.119.0-beta.3` 的 `1022`，因此可以直接覆盖安装到官方 beta 版之上（签名均为上游 `testkey` debug 签名）。
+- 版本：`versionCode 1024` / `versionName 0.119.0-beta.3-a11.1`
+- 说明：`versionCode` 为 `1024`，高于官方 `v0.119.0-beta.3` 的 `1022`，因此可以直接覆盖安装到官方 beta 版之上（签名均为上游 `testkey` debug 签名）。
 
 ## 相对官方 v0.119.0-beta.3 / v0.118.0 的改动
 
@@ -11,8 +11,12 @@
 
 `app/src/main/java/com/termux/app/TermuxActivity.java`
 
-- 首次启动（`savedInstanceState == null`）时检测存储权限，缺失则自动调用 `requestStoragePermission(false)` 申请，不再需要用户手动跑 `termux-setup-storage`。
-- Android 11+ 检测/申请的是「所有文件访问权限」`MANAGE_EXTERNAL_STORAGE`，而不是旧的 `READ/WRITE_EXTERNAL_STORAGE`。
+- 首次启动时自动检测并申请存储权限，不再依赖用户手动执行 `termux-setup-storage`。
+- **Android 11–13**：申请 legacy 的 `READ/WRITE_EXTERNAL_STORAGE`（普通权限弹框，可直接点「允许」），
+  授予后即可完整访问 `/sdcard`。
+- **Android 14+**：legacy 权限只能拿到「照片/音乐/视频」粒度授权，因此改为申请
+  「所有文件访问」`MANAGE_EXTERNAL_STORAGE`，并实际校验 `/storage/emulated/0` 能否列出目录。
+- 判定逻辑见 `hasStorageAccessPermission()` / `shouldPrioritizeManageExternalStoragePermission()`。
 
 ### 2. 移植 v0.119.0-beta.3 的存储权限新逻辑（上游 8cdeb552）
 
@@ -50,7 +54,7 @@
 
 ### 5. 版本号
 
-`app/build.gradle`：`versionCode 1023` / `versionName "0.119.0-beta.3-a11"`。
+`app/build.gradle`：`versionCode 1024` / `versionName "0.119.0-beta.3-a11.1"`。
 
 ### 6. bootstrap 变体版本区间校验（移植自 beta 分支 `46cd5143`）
 
