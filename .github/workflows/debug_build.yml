@@ -154,7 +154,7 @@ jobs:
           set -euo pipefail
           VER="$(grep -m 1 -E '^[[:space:]]+versionName "[^"]+"$' ./app/build.gradle | sed -r 's/^[[:space:]]+versionName "([^"]+)"$/\1/')"
           SHA="${GITHUB_SHA:0:7}"
-          TAG="v${VER}-a11"
+          TAG="v${VER}"
           TITLE="Termux a11 v${VER}（Android 11 存储访问修复版）"
           cat > /tmp/release_notes.md <<EOF
           ## 修复的问题
