@@ -113,6 +113,10 @@ public class TermuxTerminalViewClient extends TermuxTerminalViewClientBase {
         // Show the soft keyboard if required
         setSoftKeyboardState(true, mActivity.isActivityRecreated());
 
+        // Apply "Keep screen on" preference, in case it was changed in the settings activity while
+        // the terminal activity was in the background.
+        mActivity.getTerminalView().setKeepScreenOn(mActivity.getPreferences().shouldKeepScreenOn());
+
         mTerminalCursorBlinkerStateAlreadySet = false;
 
         if (mActivity.getTerminalView().mEmulator != null) {

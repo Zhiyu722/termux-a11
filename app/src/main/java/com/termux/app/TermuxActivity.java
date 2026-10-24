@@ -10,6 +10,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.ServiceConnection;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.view.ContextMenu;
@@ -283,8 +284,13 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // with "Permission denied". Request it automatically on first launch instead of relying on the
         // user to run termux-setup-storage (which may only create symlinks and never trigger the
         // permission prompt on some devices).
-        if (savedInstanceState == null && !PermissionUtils.checkStoragePermission(this,
-            PermissionUtils.isLegacyExternalStoragePossible(this))) {
+        //
+        // On Android 11+ "All files access" (MANAGE_EXTERNAL_STORAGE) is checked/requested, since
+        // requesting legacy storage permission may only grant granular media permissions on newer
+        // Android versions (specially Android 14+) and not full file access to /sdcard.
+        boolean checkLegacyStoragePermission = Build.VERSION.SDK_INT < Build.VERSION_CODES.R;
+        if (savedInstanceState == null &&
+            !PermissionUtils.checkStoragePermission(this, checkLegacyStoragePermission)) {
             requestStoragePermission(false);
         }
     }
@@ -784,7 +790,7 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
 
                 // If permission is granted, then also setup storage symlinks.
                 if(PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission(
-                    TermuxActivity.this, requestCode, !isPermissionCallback)) {
+                    TermuxActivity.this, requestCode, true, !isPermissionCallback)) {
                     if (isPermissionCallback)
                         Logger.logInfoAndShowToast(TermuxActivity.this, LOG_TAG,
                             getString(com.termux.shared.R.string.msg_storage_permission_granted_on_request));

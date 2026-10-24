@@ -196,6 +196,12 @@
             <!-- View Category -->
             <string name="termux_terminal_view_view_header">View</string>
 
+                <!-- Keep Screen On -->
+                <string name="termux_terminal_view_keep_screen_on_title">Keep Screen On</string>
+                <string name="termux_terminal_view_keep_screen_on_off">Screen will be allowed to turn off while the terminal is open. (Default)</string>
+                <string name="termux_terminal_view_keep_screen_on_on">Screen will be kept on while the terminal is open.
+                    Useful for long running commands like builds or servers.</string>
+
                 <!-- Terminal View Margin Adjustment -->
                 <string name="termux_terminal_view_terminal_margin_adjustment_title">Terminal Margin Adjustment</string>
                 <string name="termux_terminal_view_terminal_margin_adjustment_off">Terminal margin adjustment will be disabled.</string>

@@ -1,5 +1,16 @@
 # Termux application
 
+> **本仓库（`Zhiyu722/termux-a11`）是 [termux/termux-app](https://github.com/termux/termux-app) 的定制分支**，相对官方 `v0.119.0-beta.3`（以及旧版 `v0.118.0`）额外做了以下改动，版本号见 `app/build.gradle`（`versionCode 1023` / `versionName 0.119.0-beta.3-a11`）：
+>
+> 1. **修复 Android 11+ 无法访问 `/sdcard`**：首次启动时自动申请存储权限（Android 11+ 直接申请「所有文件访问权限」`MANAGE_EXTERNAL_STORAGE`），不再需要用户手动执行 `termux-setup-storage`，`ls /sdcard` 不再报 `Permission denied`。
+> 2. **移植 `v0.119.0-beta.3` 的存储权限新逻辑**：`PermissionUtils.checkAndRequestLegacyOrManageExternalStoragePermission()` 新增 `prioritizeManageExternalStoragePermission` 参数，在 Android 11+ 优先申请 `MANAGE_EXTERNAL_STORAGE`，修复 Android 14 上只弹「照片/音乐/视频」细粒度授权、拿不到 `/sdcard` 读写的问题，并且顺带支持 USB OTG 等外部卷。
+> 3. **默认 apt 源改为清华 TUNA 镜像**：bootstrap 安装完成后写入
+>    `deb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main`
+>    到 `$PREFIX/etc/apt/sources.list`，国内用户装完即可直接 `pkg install`（之后用 `termux-change-repo` 或手动编辑仍然可以换成别的源，不会被覆盖）。
+> 4. **新增「保持屏幕常亮」开关**：设置 → Termux → 终端视图 → *Keep Screen On*，也可长按终端通过右键菜单开关，跑编译/服务器时不再自动息屏。
+>
+> 代码基线为官方 `master`（含 `v0.119.0-beta.3` 之后的全部上游修复：Android 16 兼容、Sixel 图形、AGP 8 / Gradle 9 工具链等），仅在其之上叠加上述定制。构建由 GitHub Actions（`.github/workflows/debug_build.yml`）完成，产物为 debug 签名 APK。
+
 [![Build status](https://github.com/termux/termux-app/workflows/Build/badge.svg)](https://github.com/termux/termux-app/actions)
 [![Testing status](https://github.com/termux/termux-app/workflows/Unit%20tests/badge.svg)](https://github.com/termux/termux-app/actions)
 [![Join the chat at https://gitter.im/termux/termux](https://badges.gitter.im/termux/termux.svg)](https://gitter.im/termux/termux)

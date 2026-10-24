@@ -27,7 +27,9 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.io.IOException;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipEntry;
@@ -60,6 +62,20 @@ import static com.termux.shared.termux.TermuxConstants.TERMUX_STAGING_PREFIX_DIR
 final class TermuxInstaller {
 
     private static final String LOG_TAG = "TermuxInstaller";
+
+    /** The path of the apt sources list file, relative to the termux prefix directory. */
+    private static final String APT_SOURCES_LIST_FILE_RELATIVE_PATH = "etc/apt/sources.list";
+
+    /**
+     * The apt sources list that is written to {@link #APT_SOURCES_LIST_FILE_RELATIVE_PATH} after the
+     * bootstrap packages have been installed, replacing the default official repository with the
+     * Tsinghua University (TUNA) mirror so that `pkg install`/`apt install` works out of the box from
+     * China. The user can still switch to another mirror later, either by running `termux-change-repo`
+     * or by editing `$PREFIX/etc/apt/sources.list` manually, which will not be overwritten again by the
+     * app unless the bootstrap is reinstalled.
+     */
+    private static final String DEFAULT_APT_SOURCES_LIST =
+        "deb https://mirrors.tuna.tsinghua.edu.cn/termux/apt/termux-main stable main\n";
 
     /** Performs bootstrap setup if necessary. */
     static void setupBootstrapIfNeeded(final Activity activity, final Runnable whenDone) {
@@ -218,6 +234,10 @@ final class TermuxInstaller {
 
                     Logger.logInfo(LOG_TAG, "Bootstrap packages installed successfully.");
 
+                    // Replace the default official apt repository with the Tsinghua University (TUNA)
+                    // mirror before the packages are ever used by the user.
+                    writeDefaultAptSourcesList();
+
                     // Recreate env file since termux prefix was wiped earlier
                     TermuxShellEnvironment.writeEnvironmentToFile(activity);
 
@@ -237,6 +257,33 @@ final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    /**
+     * Write {@link #DEFAULT_APT_SOURCES_LIST} to {@link #APT_SOURCES_LIST_FILE_RELATIVE_PATH} inside
+     * the termux prefix directory, overwriting the apt sources list that was extracted from the
+     * bootstrap archive. This only applies the mirror for new bootstrap installations (and when the
+     * prefix is reinstalled), any later manual changes by the user are preserved.
+     */
+    private static void writeDefaultAptSourcesList() {
+        File sourcesListFile = new File(TERMUX_PREFIX_DIR, APT_SOURCES_LIST_FILE_RELATIVE_PATH);
+
+        // The bootstrap archive should already contain the "etc/apt" directory, but create it just in
+        // case it does not exist so that the mirror can still be set.
+        File aptSourcesListDir = sourcesListFile.getParentFile();
+        if (aptSourcesListDir != null && !aptSourcesListDir.exists()) {
+            if (!aptSourcesListDir.mkdirs() && !aptSourcesListDir.exists()) {
+                Logger.logError(LOG_TAG, "Failed to create apt sources list directory \"" + aptSourcesListDir.getAbsolutePath() + "\".");
+                return;
+            }
+        }
+
+        try (FileOutputStream outStream = new FileOutputStream(sourcesListFile)) {
+            outStream.write(DEFAULT_APT_SOURCES_LIST.getBytes(StandardCharsets.UTF_8));
+            Logger.logInfo(LOG_TAG, "Set default apt sources list to: " + DEFAULT_APT_SOURCES_LIST.trim());
+        } catch (IOException e) {
+            Logger.logError(LOG_TAG, "Failed to set default apt sources list \"" + sourcesListFile.getAbsolutePath() + "\": " + e.getMessage());
+        }
     }
 
     public static void showBootstrapErrorDialog(Activity activity, Runnable whenDone, String message) {
